@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=yes">
+<meta name="theme-color" content="#1f5f3e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="맛집마블">
+<title>경주 맛집마블</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<style>
+:root{--green:#9fcb83;--green2:#1f5f3e;--line:#2e332f;--bg:#f6f5f0;--card:#fff;--muted:#6a726c}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:#172019;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Segoe UI",sans-serif}
+body{padding-bottom:env(safe-area-inset-bottom)}
+header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-bottom:1px solid #ddd;padding:12px max(12px,env(safe-area-inset-left));display:flex;gap:10px;align-items:center;justify-content:space-between}
+h1{font-size:19px;margin:0} header small{display:block;color:var(--muted);font-weight:500;margin-top:2px}
+button,.btn{border:0;border-radius:11px;padding:10px 12px;background:var(--green2);color:#fff;font-weight:800;font-size:14px;cursor:pointer}
+button.secondary,.btn.secondary{background:#ecefeb;color:#172019}
+button.warn{background:#f2e4e4;color:#8b2929}
+main{max-width:1480px;margin:auto;padding:12px}
+.toolbar{display:flex;gap:7px;flex-wrap:wrap;background:white;padding:10px;border:1px solid #dfe3df;border-radius:14px;margin-bottom:10px}
+.toolbar .status{margin-left:auto;align-self:center;font-weight:800;font-size:13px}
+.tip{font-size:12px;color:var(--muted);margin:8px 2px}
+.board-scroll{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid #d8ddd8;border-radius:14px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.05)}
+.board{position:relative;width:1440px;height:860px;background:white}
+.cell{position:absolute;border:1px solid var(--line);background:#f5f3ee;display:flex;align-items:center;justify-content:center;text-align:center;padding:5px;font-size:12px;line-height:1.23;font-weight:750;overflow:hidden;cursor:pointer}
+.cell.recommended{background:var(--green)}
+.cell.special{background:#e8e8e8}
+.cell.current{outline:5px solid #ff8a00;outline-offset:-5px;z-index:5}
+.cell.visited::after{content:"✓";position:absolute;right:4px;top:2px;font-size:14px;font-weight:1000;color:#14532d}
+.cell .pin{position:absolute;left:4px;bottom:2px;font-size:15px}
+.center{position:absolute;left:160px;right:160px;top:105px;bottom:105px;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;text-align:center;background:#fff}
+.center h2{font-size:42px;margin:0 0 18px} .center p{font-size:29px;margin:0;font-weight:400}
+.center .sub{margin-top:28px;font-size:14px;color:var(--muted)}
+.rating-chip{position:absolute;bottom:3px;right:4px;font-size:10px;color:#555}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin:10px 0 0;font-size:12px;color:var(--muted)} .swatch{width:14px;height:14px;border:1px solid #666;display:inline-block;vertical-align:-2px;margin-right:4px;background:var(--green)}
+dialog{border:0;padding:0;border-radius:18px;width:min(94vw,520px);box-shadow:0 25px 70px rgba(0,0,0,.25)} dialog::backdrop{background:rgba(0,0,0,.45)}
+.modal{padding:20px;position:relative} .close{position:absolute;right:12px;top:12px;background:#eef0ee;color:#222;padding:8px 10px} .modal h2{padding-right:48px;margin:0 0 4px}
+.meta{font-size:13px;color:var(--muted)} .stars{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 16px} .star{background:#eee;color:#333} .star.on{background:#ffd667}
+textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;padding:10px;font:inherit} .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.stats{margin-top:10px;background:#fff;border:1px solid #dfe3df;border-radius:14px;padding:12px;display:flex;gap:18px;flex-wrap:wrap;font-size:13px}
+@media(max-width:700px){
+  header{align-items:flex-start} h1{font-size:18px} main{padding:8px}
+  .toolbar .status{width:100%;margin-left:0}
+  .board{transform-origin:top left}
+  .tip::after{content:" · 가로 화면을 권장합니다."}
+}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>경주 맛집마블</h1><small>어디서 무엇을 먹을지 고민일 때</small></div>
+  <button id="helpBtn" class="secondary">설치방법</button>
+</header>
+<main>
+  <div class="toolbar">
+    <button id="rollBtn">🎲 주사위</button>
+    <button id="randomBtn">✨ 랜덤 맛집</button>
+    <button id="startBtn" class="secondary">START 이동</button>
+    <button id="exportBtn" class="secondary">백업</button>
+    <label class="btn secondary">복원<input id="importInput" type="file" accept=".json,application/json" hidden></label>
+    <span class="status" id="status">현재 위치: START</span>
+  </div>
+  <div class="tip">칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 초록색은 엑셀에서 초록색으로 표시된 칸입니다.</div>
+  <div class="board-scroll" id="scroll">
+    <div class="board" id="board">
+      <div class="center">
+        <div>
+          <h2>경주 맛집 마블~~</h2>
+          <p>어디서 무엇을 먹을지 고민일 때</p>
+          <div class="sub" id="centerStatus">START</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="legend"><span><i class="swatch"></i>엑셀 초록색 칸</span><span>📍 현재 위치</span><span>✓ 방문완료</span></div>
+  <div class="stats" id="stats"></div>
+</main>
+
+<dialog id="dialog">
+  <div class="modal">
+    <button class="close" id="closeBtn">✕</button>
+    <h2 id="mTitle"></h2>
+    <div class="meta" id="mMeta"></div>
+    <div class="row"><label><input type="checkbox" id="visited"> 방문완료</label></div>
+    <h4>내 평점</h4>
+    <div class="stars" id="stars"></div>
+    <h4>메모</h4>
+    <textarea id="note" placeholder="추천 메뉴, 웨이팅, 주차, 다음에 먹을 메뉴 등"></textarea>
+    <div class="row">
+      <button id="moveBtn">이 칸으로 이동</button>
+      <button id="saveBtn" class="secondary">저장</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="helpDialog">
+  <div class="modal">
+    <button class="close" id="helpClose">✕</button>
+    <h2>홈 화면에 설치</h2>
+    <p><b>iPhone</b><br>Safari에서 이 사이트 열기 → 공유 버튼 → <b>홈 화면에 추가</b> → 추가</p>
+    <p><b>Android</b><br>Chrome에서 이 사이트 열기 → 메뉴(⋮) → <b>앱 설치</b> 또는 <b>홈 화면에 추가</b></p>
+    <p class="meta">별도 로그인/서버 없이 이 기기의 브라우저에 평점·메모·현재 위치가 저장됩니다.</p>
+  </div>
+</dialog>
+
+<script>
+const PLACES = [{"name": "START", "kind": "special", "recommended": false}, {"name": "궁림바지락칼국수", "kind": "restaurant", "recommended": false}, {"name": "소문난복래(삼계탕)", "kind": "restaurant", "recommended": false}, {"name": "미담영양솥밥", "kind": "restaurant", "recommended": false}, {"name": "불국사밀면", "kind": "restaurant", "recommended": false}, {"name": "원조떡갈비(찌개정식)", "kind": "restaurant", "recommended": false}, {"name": "송정원순두부", "kind": "restaurant", "recommended": false}, {"name": "불국사복주쌈밥", "kind": "restaurant", "recommended": false}, {"name": "경주밀면", "kind": "restaurant", "recommended": false}, {"name": "삼국식당 삼국애", "kind": "restaurant", "recommended": false}, {"name": "탐마루(정식)", "kind": "restaurant", "recommended": false}, {"name": "해솔방 칼국수,돈까스", "kind": "restaurant", "recommended": false}, {"name": "박용자경주 명동쫄면", "kind": "restaurant", "recommended": false}, {"name": "경주우렁각시 우렁강된장", "kind": "restaurant", "recommended": false}, {"name": "눈뚜렁밥뚜렁 돼지석쇠구이정식", "kind": "restaurant", "recommended": false}, {"name": "부산식당 차돌된장", "kind": "restaurant", "recommended": false}, {"name": "맛자랑 돌솥정식", "kind": "restaurant", "recommended": false}, {"name": "갈비랑국수랑", "kind": "restaurant", "recommended": false}, {"name": "여자만(장어)", "kind": "restaurant", "recommended": true}, {"name": "경주전복해물뚝배기", "kind": "restaurant", "recommended": false}, {"name": "초원석쇠불고기", "kind": "restaurant", "recommended": false}, {"name": "낙지마실", "kind": "restaurant", "recommended": false}, {"name": "감포별미횟집", "kind": "restaurant", "recommended": true}, {"name": "보문갈비", "kind": "restaurant", "recommended": false}, {"name": "느티나무", "kind": "restaurant", "recommended": false}, {"name": "경성면옥", "kind": "restaurant", "recommended": false}, {"name": "영천돼지국밥", "kind": "restaurant", "recommended": false}, {"name": "불국사복집", "kind": "restaurant", "recommended": false}, {"name": "최박사 돼지갈비", "kind": "restaurant", "recommended": true}, {"name": "가현추어탕(고디)", "kind": "restaurant", "recommended": false}, {"name": "청포(해물)", "kind": "restaurant", "recommended": false}, {"name": "황림 매운탕", "kind": "restaurant", "recommended": false}, {"name": "산성 숯불갈비", "kind": "restaurant", "recommended": false}, {"name": "해운대회식당 복어/아구", "kind": "restaurant", "recommended": false}, {"name": "미남장어", "kind": "restaurant", "recommended": true}, {"name": "보문한우", "kind": "restaurant", "recommended": true}, {"name": "경상도 추어탕", "kind": "restaurant", "recommended": false}, {"name": "구내식당", "kind": "restaurant", "recommended": false}, {"name": "불국사 토함산밀면", "kind": "restaurant", "recommended": false}, {"name": "들고래횟집 물회", "kind": "restaurant", "recommended": false}, {"name": "주상절리돌짬뽕", "kind": "restaurant", "recommended": false}, {"name": "금동 중식", "kind": "restaurant", "recommended": false}, {"name": "일품양평해장국", "kind": "restaurant", "recommended": false}, {"name": "석거돈 낙지돼지볶음", "kind": "restaurant", "recommended": true}, {"name": "현대쌈밥", "kind": "restaurant", "recommended": false}, {"name": "산주향 파스타, 피자", "kind": "restaurant", "recommended": false}, {"name": "등큰돈까스", "kind": "restaurant", "recommended": false}, {"name": "춘향이 삼겹살,짜글이", "kind": "restaurant", "recommended": true}, {"name": "마당발쭈꾸미", "kind": "restaurant", "recommended": false}, {"name": "독도모밀", "kind": "restaurant", "recommended": false}, {"name": "토함한우채", "kind": "restaurant", "recommended": true}, {"name": "부타도리 덮밥", "kind": "restaurant", "recommended": false}, {"name": "불국어당", "kind": "restaurant", "recommended": false}, {"name": "난식당1974(명란 비빔밥)", "kind": "restaurant", "recommended": false}, {"name": "DC제작 누적수익률 1등이 쏘기", "kind": "special", "recommended": false}, {"name": "자연밥상 솥밥", "kind": "restaurant", "recommended": false}, {"name": "장수두부촌 순두부찌개정식", "kind": "restaurant", "recommended": false}, {"name": "청담오마카세", "kind": "restaurant", "recommended": true}, {"name": "토담가마솥국밥", "kind": "restaurant", "recommended": false}, {"name": "월성돼지국밥", "kind": "restaurant", "recommended": false}, {"name": "부산손칼국수", "kind": "restaurant", "recommended": false}, {"name": "수복참치", "kind": "restaurant", "recommended": true}, {"name": "하동낙지", "kind": "restaurant", "recommended": false}, {"name": "내조국국밥", "kind": "restaurant", "recommended": false}, {"name": "두부마을", "kind": "restaurant", "recommended": false}, {"name": "떡이네조개전골", "kind": "restaurant", "recommended": true}, {"name": "한돈가", "kind": "restaurant", "recommended": true}, {"name": "이층생활(파스타)", "kind": "restaurant", "recommended": false}, {"name": "보문어담가", "kind": "restaurant", "recommended": false}, {"name": "고집갈비당", "kind": "restaurant", "recommended": false}, {"name": "참뼈감자탕", "kind": "restaurant", "recommended": false}, {"name": "OK목장", "kind": "restaurant", "recommended": true}, {"name": "함양집(한우물회)", "kind": "restaurant", "recommended": false}, {"name": "호반오리", "kind": "restaurant", "recommended": true}, {"name": "경촌재(비빔밥)", "kind": "restaurant", "recommended": false}];
+const KEY="gyeongju-matjip-marble-v2";
+const defaultState={position:0,visited:{},ratings:{},notes:{}};
+let state=load(), selected=0;
+
+function load(){
+  try{return Object.assign({},defaultState,JSON.parse(localStorage.getItem(KEY)||"{}"));}
+  catch(e){return JSON.parse(JSON.stringify(defaultState));}
+}
+function persist(){localStorage.setItem(KEY,JSON.stringify(state));render();}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
+
+/* 사진 비율을 살린 고정형 외곽 보드:
+   상단 17칸 / 우측 21칸 / 하단 17칸 / 좌측 20칸 */
+const W=1440,H=860, sideW=160, topH=105;
+const counts={top:17,right:21,bottom:17,left:20};
+
+function positionFor(i){
+  if(i<counts.top){
+    const w=W/counts.top; return {x:i*w,y:0,w,h:topH};
+  }
+  i-=counts.top;
+  if(i<counts.right){
+    const h=(H-topH*2)/counts.right; return {x:W-sideW,y:topH+i*h,w:sideW,h};
+  }
+  i-=counts.right;
+  if(i<counts.bottom){
+    const w=(W-sideW*2)/counts.bottom;
+    return {x:W-sideW-(i+1)*w,y:H-topH,w,h:topH};
+  }
+  i-=counts.bottom;
+  const h=(H-topH*2)/counts.left;
+  return {x:0,y:H-topH-(i+1)*h,w:sideW,h};
+}
+
+function render(){
+  document.querySelectorAll(".cell").forEach(x=>x.remove());
+  PLACES.forEach((p,i)=>{
+    const r=positionFor(i), d=document.createElement("div");
+    d.className="cell"+(p.recommended?" recommended":"")+(p.kind==="special"?" special":"")+(state.position===i?" current":"")+(state.visited[i]?" visited":"");
+    Object.assign(d.style,{left:r.x+"px",top:r.y+"px",width:r.w+"px",height:r.h+"px"});
+    const rating=Number(state.ratings[i]||0);
+    d.innerHTML=`<span>${esc(p.name)}</span>${state.position===i?'<span class="pin">📍</span>':""}${rating?`<span class="rating-chip">★${rating}</span>`:""}`;
+    d.onclick=()=>openPlace(i);
+    board.appendChild(d);
+  });
+  const p=PLACES[state.position];
+  status.textContent=`현재 위치: ${p.name}`;
+  centerStatus.textContent=`📍 ${p.name}`;
+  const visited=Object.values(state.visited).filter(Boolean).length;
+  const rated=Object.values(state.ratings).filter(v=>Number(v)>0).length;
+  stats.innerHTML=`<b>방문완료 ${visited}곳</b><span>평점 등록 ${rated}곳</span><span>총 ${PLACES.length}칸</span>`;
+}
+
+function openPlace(i){
+  selected=i; const p=PLACES[i];
+  mTitle.textContent=p.name;
+  mMeta.textContent=p.recommended?"엑셀 초록색 표시":"";
+  visited.checked=!!state.visited[i];
+  note.value=state.notes[i]||"";
+  stars.innerHTML="";
+  for(let n=1;n<=5;n++){
+    const b=document.createElement("button"); b.type="button"; b.textContent="★ "+n;
+    b.className="star"+(n<=Number(state.ratings[i]||0)?" on":"");
+    b.onclick=()=>{state.ratings[i]=n; persist(); openPlace(i);};
+    stars.appendChild(b);
+  }
+  dialog.showModal();
+}
+function saveModal(){
+  state.visited[selected]=visited.checked;
+  state.notes[selected]=note.value;
+  persist(); dialog.close();
+}
+rollBtn.onclick=()=>{
+  const n=Math.floor(Math.random()*6)+1;
+  state.position=(state.position+n)%PLACES.length; persist();
+  setTimeout(()=>openPlace(state.position),180);
+};
+randomBtn.onclick=()=>{
+  const ids=PLACES.map((p,i)=>i).filter(i=>PLACES[i].kind==="restaurant");
+  state.position=ids[Math.floor(Math.random()*ids.length)]; persist(); openPlace(state.position);
+};
+startBtn.onclick=()=>{state.position=0;persist();};
+moveBtn.onclick=()=>{state.position=selected;persist();dialog.close();};
+saveBtn.onclick=saveModal;
+closeBtn.onclick=()=>dialog.close();
+helpBtn.onclick=()=>helpDialog.showModal();
+helpClose.onclick=()=>helpDialog.close();
+
+exportBtn.onclick=()=>{
+  const blob=new Blob([JSON.stringify({version:2,exportedAt:new Date().toISOString(),state},null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=url;a.download="gyeongju-matjip-marble-v2-backup.json";a.click();URL.revokeObjectURL(url);
+};
+importInput.onchange=async e=>{
+  const f=e.target.files?.[0]; if(!f)return;
+  try{const j=JSON.parse(await f.text());state=Object.assign({},defaultState,j.state||j);persist();alert("복원했습니다.");}
+  catch{alert("백업 파일을 읽지 못했습니다.");}
+  e.target.value="";
+};
+
+if("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+render();
+</script>
+</body>
+</html>
