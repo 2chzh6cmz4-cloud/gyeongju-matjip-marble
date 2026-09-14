@@ -25,8 +25,8 @@ main{max-width:1480px;margin:auto;padding:12px}
 .toolbar .status{margin-left:auto;align-self:center;font-weight:800;font-size:13px}
 .tip{font-size:12px;color:var(--muted);margin:8px 2px}
 .board-scroll{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid #d8ddd8;border-radius:14px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.05)}
-.board{position:relative;width:1900px;height:1320px;background:white}
-.cell{position:absolute;border:1px solid var(--line);background:#f5f3ee;display:flex;align-items:center;justify-content:center;text-align:center;padding:6px 7px;font-size:13px;line-height:1.22;font-weight:750;overflow:hidden;cursor:pointer;white-space:normal;word-break:keep-all;overflow-wrap:anywhere}
+.board{position:relative;width:1900px;height:1900px;background:white}
+.cell{position:absolute;border:1px solid var(--line);background:#f5f3ee;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px 6px;font-size:13px;line-height:1.16;font-weight:750;overflow:hidden;cursor:pointer;white-space:normal;word-break:keep-all;overflow-wrap:anywhere}
 .cell.recommended{background:var(--green)}
 .cell.special{background:#e8e8e8}
 .cell.current{outline:5px solid #ff8a00;outline-offset:-5px;z-index:5}
@@ -64,7 +64,7 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
     <label class="btn secondary">복원<input id="importInput" type="file" accept=".json,application/json" hidden></label>
     <span class="status" id="status">현재 위치: START</span>
   </div>
-  <div class="tip">칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 긴 상호명이 잘리지 않도록 칸 크기를 확대한 V2.1입니다.</div>
+  <div class="tip">칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 좌·우측 긴 상호명이 잘리지 않도록 세로 칸 높이를 크게 확대한 V2.2입니다.</div>
   <div class="board-scroll" id="scroll">
     <div class="board" id="board">
       <div class="center">
@@ -128,7 +128,7 @@ function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&l
 
 /* 사진 비율을 살린 고정형 외곽 보드:
    상단 17칸 / 우측 21칸 / 하단 17칸 / 좌측 20칸 */
-const W=1900,H=1320, sideW=220, topH=135;
+const W=1900,H=1900, sideW=220, topH=135;
 const counts={top:17,right:21,bottom:17,left:20};
 
 
@@ -137,8 +137,9 @@ function fontSizeFor(p, i){
   const onSide = i>=counts.top && i<(counts.top+counts.right) ||
                  i>=(counts.top+counts.right+counts.bottom);
   if(onSide){
-    if(len>=16) return 11;
-    if(len>=12) return 12;
+    if(len>=18) return 10;
+    if(len>=14) return 11;
+    if(len>=10) return 12;
     return 13;
   }
   if(len>=17) return 11;
