@@ -64,9 +64,10 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
     <label class="btn secondary">복원<input id="importInput" type="file" accept=".json,application/json" hidden></label>
     <span class="status" id="status">현재 위치: START</span>
   </div>
-  <div class="tip">칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 좌·우측 긴 상호명이 잘리지 않도록 세로 칸 높이를 크게 확대한 V2.2입니다.</div>
+  <div class="tip">칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 모서리 칸을 원본 엑셀 구조에 맞춰 정렬한 V2.3입니다.</div>
   <div class="board-scroll" id="scroll">
     <div class="board" id="board">
+      <div class="cell special" style="left:1680px;top:0;width:220px;height:135px;cursor:default;font-size:12px">개인종합평가 5가 쏘기</div>
       <div class="center">
         <div>
           <h2>경주 맛집 마블~~</h2>
@@ -130,6 +131,9 @@ function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&l
    상단 17칸 / 우측 21칸 / 하단 17칸 / 좌측 20칸 */
 const W=1900,H=1900, sideW=220, topH=135;
 const counts={top:17,right:21,bottom:17,left:20};
+const middleTopCount=16;   // B~Q
+const sideInnerCount=20;   // 좌/우 세로 안쪽 칸 수
+
 
 
 function fontSizeFor(p, i){
@@ -148,21 +152,44 @@ function fontSizeFor(p, i){
 }
 
 function positionFor(i){
-  if(i<counts.top){
-    const w=W/counts.top; return {x:i*w,y:0,w,h:topH};
+  const midW=W-sideW*2;
+  const midCellW=midW/middleTopCount;
+  const innerH=H-topH*2;
+  const sideCellH=innerH/sideInnerCount;
+
+  // 0: START = 좌상단 모서리
+  if(i===0) return {x:0,y:0,w:sideW,h:topH};
+
+  // 1~16: 상단 B~Q
+  if(i>=1 && i<=16){
+    return {x:sideW+(i-1)*midCellW,y:0,w:midCellW,h:topH};
   }
-  i-=counts.top;
-  if(i<counts.right){
-    const h=(H-topH*2)/counts.right; return {x:W-sideW,y:topH+i*h,w:sideW,h};
+
+  // 17~36: 우측 안쪽 20칸 (갈비랑국수랑 ~ 경상도 추어탕)
+  if(i>=17 && i<=36){
+    const j=i-17;
+    return {x:W-sideW,y:topH+j*sideCellH,w:sideW,h:sideCellH};
   }
-  i-=counts.right;
-  if(i<counts.bottom){
-    const w=(W-sideW*2)/counts.bottom;
-    return {x:W-sideW-(i+1)*w,y:H-topH,w,h:topH};
+
+  // 37: 구내식당 = 우하단 모서리
+  if(i===37) return {x:W-sideW,y:H-topH,w:sideW,h:topH};
+
+  // 38~53: 하단 Q~B, 오른쪽에서 왼쪽
+  if(i>=38 && i<=53){
+    const j=i-38;
+    return {x:W-sideW-(j+1)*midCellW,y:H-topH,w:midCellW,h:topH};
   }
-  i-=counts.bottom;
-  const h=(H-topH*2)/counts.left;
-  return {x:0,y:H-topH-(i+1)*h,w:sideW,h};
+
+  // 54: DC제작... = 좌하단 모서리
+  if(i===54) return {x:0,y:H-topH,w:sideW,h:topH};
+
+  // 55~74: 좌측 안쪽 20칸, 아래에서 위
+  if(i>=55 && i<=74){
+    const j=i-55;
+    return {x:0,y:H-topH-(j+1)*sideCellH,w:sideW,h:sideCellH};
+  }
+
+  return {x:0,y:0,w:sideW,h:topH};
 }
 
 function render(){
