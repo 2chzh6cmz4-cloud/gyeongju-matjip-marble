@@ -49,6 +49,25 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
   .board{transform-origin:top left}
   .tip::after{content:" · 가로 화면을 권장합니다."}
 }
+
+.dice-overlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:20;pointer-events:none;display:none;text-align:center}
+.dice-overlay.show{display:block}
+.dice-box{width:112px;height:112px;border-radius:24px;background:#fff;border:3px solid #202820;box-shadow:0 10px 30px rgba(0,0,0,.22);display:grid;place-items:center;font-size:64px;line-height:1}
+.dice-box.rolling{animation:diceShake .12s linear infinite}
+.dice-result{margin-top:10px;display:inline-block;background:#172019;color:#fff;border-radius:999px;padding:7px 13px;font-weight:900;font-size:16px}
+.cell.moving{outline:6px solid #ff8a00;outline-offset:-6px;z-index:7;animation:movePulse .42s ease}
+@keyframes diceShake{
+  0%{transform:rotate(-12deg) scale(.96)}
+  25%{transform:rotate(8deg) scale(1.04)}
+  50%{transform:rotate(14deg) scale(.98)}
+  75%{transform:rotate(-7deg) scale(1.03)}
+  100%{transform:rotate(-12deg) scale(.96)}
+}
+@keyframes movePulse{0%{filter:brightness(1)}50%{filter:brightness(.80)}100%{filter:brightness(1)}}
+@media (prefers-reduced-motion: reduce){
+  .dice-box.rolling,.cell.moving{animation:none}
+}
+
 </style>
 </head>
 <body>
@@ -65,10 +84,15 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
     <label class="btn secondary">복원<input id="importInput" type="file" accept=".json,application/json" hidden></label>
     <span class="status" id="status">현재 위치: START</span>
   </div>
-  <div class="tip">칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 우상단 모서리 셀까지 유지되도록 수정한 V2.4입니다.</div>
+  <div class="tip">주사위를 굴리면 말이 한 칸씩 이동하고 화면이 현재 칸을 따라갑니다. 칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 주사위 효과와 이동 경로를 따라가는 화면 추적을 추가한 V2.5입니다.</div>
   <div class="board-scroll" id="scroll">
     <div class="board" id="board">
       <div class="static-corner special" style="left:1680px;top:0;width:220px;height:135px;cursor:default;font-size:12px">개인종합평가 S가 쏘기</div>
+      
+      <div class="dice-overlay" id="diceOverlay" aria-live="polite">
+        <div class="dice-box" id="diceBox">⚀</div>
+        <div class="dice-result" id="diceResult">주사위 굴리는 중…</div>
+      </div>
       <div class="center">
         <div>
           <h2>경주 맛집 마블~~</h2>
@@ -120,12 +144,17 @@ function load(){
   catch(e){return JSON.parse(JSON.stringify(defaultState));}
 }
 function persist(){localStorage.setItem(KEY,JSON.stringify(state));render();}
-function focusCurrent(){
+function focusIndex(i, smooth=true){
   requestAnimationFrame(()=>{
-    const el=document.querySelector(".cell.current");
-    if(el) el.scrollIntoView({behavior:"smooth",block:"nearest",inline:"nearest"});
+    const sc=document.getElementById("scroll");
+    const el=document.querySelector(`.cell[data-index="${i}"]`);
+    if(!sc || !el) return;
+    const targetLeft=Math.max(0, el.offsetLeft + el.offsetWidth/2 - sc.clientWidth/2);
+    const targetTop=Math.max(0, el.offsetTop + el.offsetHeight/2 - sc.clientHeight/2);
+    sc.scrollTo({left:targetLeft, top:targetTop, behavior:smooth?"smooth":"auto"});
   });
 }
+function focusCurrent(){ focusIndex(state.position, true); }
 function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
 
 /* 사진 비율을 살린 고정형 외곽 보드:
@@ -197,7 +226,7 @@ function render(){
   document.querySelectorAll(".cell").forEach(x=>x.remove());
   PLACES.forEach((p,i)=>{
     const r=positionFor(i), d=document.createElement("div");
-    d.className="cell"+(p.recommended?" recommended":"")+(p.kind==="special"?" special":"")+(state.position===i?" current":"")+(state.visited[i]?" visited":"");
+    d.className="cell"+(p.recommended?" recommended":"")+(p.kind==="special"?" special":"")+(state.position===i?" current":"")+(state.visited[i]?" visited":""); d.dataset.index=i;
     Object.assign(d.style,{left:r.x+"px",top:r.y+"px",width:r.w+"px",height:r.h+"px",fontSize:fontSizeFor(p,i)+"px"});
     const rating=Number(state.ratings[i]||0);
     d.innerHTML=`<span>${esc(p.name)}</span>${state.position===i?'<span class="pin">📍</span>':""}${rating?`<span class="rating-chip">★${rating}</span>`:""}`;
@@ -232,11 +261,61 @@ function saveModal(){
   state.notes[selected]=note.value;
   persist(); dialog.close();
 }
-rollBtn.onclick=()=>{
-  const n=Math.floor(Math.random()*6)+1;
-  state.position=(state.position+n)%PLACES.length; persist(); focusCurrent();
-  setTimeout(()=>openPlace(state.position),180);
-};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const diceFaces=["⚀","⚁","⚂","⚃","⚄","⚅"];
+let isRolling=false;
+
+async function animateRoll(){
+  if(isRolling) return;
+  isRolling=true;
+  rollBtn.disabled=true;
+  randomBtn.disabled=true;
+
+  const finalRoll=Math.floor(Math.random()*6)+1;
+  diceOverlay.classList.add("show");
+  diceBox.classList.add("rolling");
+  diceResult.textContent="주사위 굴리는 중…";
+
+  const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const spins=reduced?3:12;
+  for(let k=0;k<spins;k++){
+    diceBox.textContent=diceFaces[Math.floor(Math.random()*6)];
+    await sleep(reduced?70:65);
+  }
+
+  diceBox.classList.remove("rolling");
+  diceBox.textContent=diceFaces[finalRoll-1];
+  diceResult.textContent=`${finalRoll}칸 이동!`;
+  await sleep(reduced?220:650);
+
+  for(let step=1; step<=finalRoll; step++){
+    state.position=(state.position+1)%PLACES.length;
+    localStorage.setItem(KEY,JSON.stringify(state));
+    render();
+
+    // 이동한 칸을 화면 중앙에 가깝게 자동 추적
+    focusIndex(state.position,true);
+
+    const current=document.querySelector('.cell.current');
+    if(current){
+      current.classList.add("moving");
+      setTimeout(()=>current.classList.remove("moving"),420);
+    }
+
+    // 스크롤이 따라올 시간을 줌
+    await sleep(reduced?120:520);
+  }
+
+  diceResult.textContent=`도착: ${PLACES[state.position].name}`;
+  await sleep(reduced?300:900);
+  diceOverlay.classList.remove("show");
+
+  rollBtn.disabled=false;
+  randomBtn.disabled=false;
+  isRolling=false;
+  openPlace(state.position);
+}
+rollBtn.onclick=animateRoll;
 randomBtn.onclick=()=>{
   const ids=PLACES.map((p,i)=>i).filter(i=>PLACES[i].kind==="restaurant");
   state.position=ids[Math.floor(Math.random()*ids.length)]; persist(); focusCurrent(); openPlace(state.position);
