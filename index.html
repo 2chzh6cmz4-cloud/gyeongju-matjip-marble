@@ -80,9 +80,87 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
   .dice-box.rolling,.cell.moving{animation:none}
 }
 
+
+.sticky-mini-controls{
+  position:fixed;
+  left:10px;
+  right:10px;
+  top:calc(env(safe-area-inset-top, 0px) + 8px);
+  z-index:9998;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border:1px solid rgba(0,0,0,.12);
+  border-radius:16px;
+  background:rgba(255,255,255,.94);
+  box-shadow:0 8px 24px rgba(0,0,0,.16);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  opacity:0;
+  transform:translateY(-14px);
+  pointer-events:none;
+  transition:opacity .18s ease, transform .18s ease;
+}
+.sticky-mini-controls.show{
+  opacity:1;
+  transform:translateY(0);
+  pointer-events:auto;
+}
+.sticky-mini-controls button{
+  min-height:42px;
+  border:0;
+  border-radius:12px;
+  padding:0 12px;
+  font-weight:900;
+  font-size:15px;
+  white-space:nowrap;
+}
+.sticky-mini-controls .mini-roll{
+  background:#176b47;
+  color:#fff;
+}
+.sticky-mini-controls .mini-random{
+  background:#176b47;
+  color:#fff;
+}
+.sticky-mini-controls .mini-location{
+  min-width:0;
+  flex:1;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-weight:900;
+  font-size:14px;
+  color:#202820;
+}
+@media (max-width:430px){
+  .sticky-mini-controls{
+    gap:6px;
+    left:8px;
+    right:8px;
+    padding:7px 8px;
+  }
+  .sticky-mini-controls button{
+    min-height:40px;
+    padding:0 10px;
+    font-size:14px;
+  }
+  .sticky-mini-controls .mini-random .mini-random-text{
+    display:none;
+  }
+}
+
 </style>
 </head>
 <body>
+
+<div class="sticky-mini-controls" id="stickyMiniControls" aria-label="빠른 게임 컨트롤">
+  <button type="button" class="mini-roll" id="miniRollBtn">🎲 주사위</button>
+  <button type="button" class="mini-random" id="miniRandomBtn">✨ <span class="mini-random-text">랜덤 맛집</span></button>
+  <div class="mini-location" id="miniLocation">현재: START</div>
+</div>
+
 <div class="dice-overlay" id="diceOverlay" aria-live="polite">
   <div class="dice-pair"><div class="dice-box" id="diceBox1">⚀</div><div class="dice-box" id="diceBox2">⚀</div></div>
   <div class="dice-result" id="diceResult">주사위 굴리는 중…</div>
@@ -103,7 +181,7 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
     <label class="btn secondary">복원<input id="importInput" type="file" accept=".json,application/json" hidden></label>
     <span class="status" id="status">현재 위치: START</span>
   </div>
-  <div class="tip">주사위를 굴리면 말이 한 칸씩 이동하고 화면이 현재 칸을 따라갑니다. 칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 우상단 ‘개인종합평가 S가 쏘기’를 실제 이동 경로에 포함한 V3.3입니다.</div>
+  <div class="tip">주사위를 굴리면 말이 한 칸씩 이동하고 화면이 현재 칸을 따라갑니다. 칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 보드를 아래로 이동하면 화면 상단에 주사위·랜덤맛집·현재위치 미니 컨트롤바가 자동으로 나타나는 V3.4입니다.</div>
   <div class="board-scroll" id="scroll">
     <div class="board" id="board">
 <div class="center">
@@ -400,6 +478,57 @@ importInput.onchange=async e=>{
 
 if("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
 render();
+
+const stickyMiniControls=document.getElementById("stickyMiniControls");
+const miniRollBtn=document.getElementById("miniRollBtn");
+const miniRandomBtn=document.getElementById("miniRandomBtn");
+const miniLocation=document.getElementById("miniLocation");
+
+function updateMiniControls(){
+  if(!stickyMiniControls || !miniLocation) return;
+
+  // 원래 컨트롤 카드가 화면에서 충분히 보이면 미니바를 숨기고,
+  // 화면 위로 사라지면 미니바를 표시한다.
+  const mainRoll=rollBtn;
+  const rollRect=mainRoll?.getBoundingClientRect();
+  const shouldShow=rollRect ? rollRect.bottom < 16 : window.scrollY > 180;
+
+  stickyMiniControls.classList.toggle("show", shouldShow);
+
+  const currentName=PLACES[state.position]?.name || "START";
+  miniLocation.textContent=`현재: ${currentName}`;
+
+  if(miniRollBtn){
+    miniRollBtn.disabled=!!rollBtn?.disabled;
+  }
+  if(miniRandomBtn){
+    miniRandomBtn.disabled=!!randomBtn?.disabled;
+  }
+}
+
+miniRollBtn?.addEventListener("click",()=>{
+  if(!rollBtn?.disabled) rollBtn.click();
+});
+
+miniRandomBtn?.addEventListener("click",()=>{
+  if(!randomBtn?.disabled) randomBtn.click();
+});
+
+window.addEventListener("scroll",updateMiniControls,{passive:true});
+window.addEventListener("resize",updateMiniControls,{passive:true});
+window.visualViewport?.addEventListener("resize",updateMiniControls,{passive:true});
+window.visualViewport?.addEventListener("scroll",updateMiniControls,{passive:true});
+
+// render가 실행될 때 현재 위치 텍스트도 함께 갱신되도록 감싼다.
+const _renderForMini=render;
+render=function(...args){
+  const result=_renderForMini.apply(this,args);
+  requestAnimationFrame(updateMiniControls);
+  return result;
+};
+
+requestAnimationFrame(updateMiniControls);
+
 </script>
 </body>
 </html>
