@@ -1,17 +1,13 @@
-# 경주 맛집마블 V2
+# 경주 맛집마블 V2.1
 
-아이폰/안드로이드에서 바로 쓸 수 있도록 GitHub Pages용으로 만든 정적 PWA입니다.
+V2에서 긴 상호명이 일부 잘리던 문제를 수정했습니다.
 
-업로드할 파일은 루트에 아래 4개만 있으면 됩니다.
+변경사항
+- 보드 크기 확대
+- 좌/우측 칸 높이 확대
+- 긴 상호명 자동 글자크기 보정
+- 한글 단어 단위 줄바꿈 개선
+- 주사위/랜덤 이동 시 현재 칸으로 자동 스크롤
+- 서비스워커 캐시 버전 갱신
 
-- index.html
-- manifest.json
-- sw.js
-- icon.svg
-
-GitHub Pages는 Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: main / (root) → Save 로 설정하세요.
-
-iPhone: Safari → 공유 → 홈 화면에 추가
-Android: Chrome → 메뉴 → 앱 설치 또는 홈 화면에 추가
-
-데이터는 서버가 아니라 브라우저 localStorage에 저장됩니다.
+GitHub에서는 기존 파일을 이 버전의 파일로 교체하면 됩니다.

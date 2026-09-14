@@ -25,14 +25,14 @@ main{max-width:1480px;margin:auto;padding:12px}
 .toolbar .status{margin-left:auto;align-self:center;font-weight:800;font-size:13px}
 .tip{font-size:12px;color:var(--muted);margin:8px 2px}
 .board-scroll{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid #d8ddd8;border-radius:14px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.05)}
-.board{position:relative;width:1440px;height:860px;background:white}
-.cell{position:absolute;border:1px solid var(--line);background:#f5f3ee;display:flex;align-items:center;justify-content:center;text-align:center;padding:5px;font-size:12px;line-height:1.23;font-weight:750;overflow:hidden;cursor:pointer}
+.board{position:relative;width:1900px;height:1320px;background:white}
+.cell{position:absolute;border:1px solid var(--line);background:#f5f3ee;display:flex;align-items:center;justify-content:center;text-align:center;padding:6px 7px;font-size:13px;line-height:1.22;font-weight:750;overflow:hidden;cursor:pointer;white-space:normal;word-break:keep-all;overflow-wrap:anywhere}
 .cell.recommended{background:var(--green)}
 .cell.special{background:#e8e8e8}
 .cell.current{outline:5px solid #ff8a00;outline-offset:-5px;z-index:5}
 .cell.visited::after{content:"✓";position:absolute;right:4px;top:2px;font-size:14px;font-weight:1000;color:#14532d}
 .cell .pin{position:absolute;left:4px;bottom:2px;font-size:15px}
-.center{position:absolute;left:160px;right:160px;top:105px;bottom:105px;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;text-align:center;background:#fff}
+.center{position:absolute;left:220px;right:220px;top:135px;bottom:135px;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;text-align:center;background:#fff}
 .center h2{font-size:42px;margin:0 0 18px} .center p{font-size:29px;margin:0;font-weight:400}
 .center .sub{margin-top:28px;font-size:14px;color:var(--muted)}
 .rating-chip{position:absolute;bottom:3px;right:4px;font-size:10px;color:#555}
@@ -64,7 +64,7 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
     <label class="btn secondary">복원<input id="importInput" type="file" accept=".json,application/json" hidden></label>
     <span class="status" id="status">현재 위치: START</span>
   </div>
-  <div class="tip">칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 초록색은 엑셀에서 초록색으로 표시된 칸입니다.</div>
+  <div class="tip">칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 긴 상호명이 잘리지 않도록 칸 크기를 확대한 V2.1입니다.</div>
   <div class="board-scroll" id="scroll">
     <div class="board" id="board">
       <div class="center">
@@ -118,12 +118,33 @@ function load(){
   catch(e){return JSON.parse(JSON.stringify(defaultState));}
 }
 function persist(){localStorage.setItem(KEY,JSON.stringify(state));render();}
+function focusCurrent(){
+  requestAnimationFrame(()=>{
+    const el=document.querySelector(".cell.current");
+    if(el) el.scrollIntoView({behavior:"smooth",block:"nearest",inline:"nearest"});
+  });
+}
 function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
 
 /* 사진 비율을 살린 고정형 외곽 보드:
    상단 17칸 / 우측 21칸 / 하단 17칸 / 좌측 20칸 */
-const W=1440,H=860, sideW=160, topH=105;
+const W=1900,H=1320, sideW=220, topH=135;
 const counts={top:17,right:21,bottom:17,left:20};
+
+
+function fontSizeFor(p, i){
+  const len=[...p.name].length;
+  const onSide = i>=counts.top && i<(counts.top+counts.right) ||
+                 i>=(counts.top+counts.right+counts.bottom);
+  if(onSide){
+    if(len>=16) return 11;
+    if(len>=12) return 12;
+    return 13;
+  }
+  if(len>=17) return 11;
+  if(len>=13) return 12;
+  return 13;
+}
 
 function positionFor(i){
   if(i<counts.top){
@@ -148,7 +169,7 @@ function render(){
   PLACES.forEach((p,i)=>{
     const r=positionFor(i), d=document.createElement("div");
     d.className="cell"+(p.recommended?" recommended":"")+(p.kind==="special"?" special":"")+(state.position===i?" current":"")+(state.visited[i]?" visited":"");
-    Object.assign(d.style,{left:r.x+"px",top:r.y+"px",width:r.w+"px",height:r.h+"px"});
+    Object.assign(d.style,{left:r.x+"px",top:r.y+"px",width:r.w+"px",height:r.h+"px",fontSize:fontSizeFor(p,i)+"px"});
     const rating=Number(state.ratings[i]||0);
     d.innerHTML=`<span>${esc(p.name)}</span>${state.position===i?'<span class="pin">📍</span>':""}${rating?`<span class="rating-chip">★${rating}</span>`:""}`;
     d.onclick=()=>openPlace(i);
@@ -184,15 +205,15 @@ function saveModal(){
 }
 rollBtn.onclick=()=>{
   const n=Math.floor(Math.random()*6)+1;
-  state.position=(state.position+n)%PLACES.length; persist();
+  state.position=(state.position+n)%PLACES.length; persist(); focusCurrent();
   setTimeout(()=>openPlace(state.position),180);
 };
 randomBtn.onclick=()=>{
   const ids=PLACES.map((p,i)=>i).filter(i=>PLACES[i].kind==="restaurant");
-  state.position=ids[Math.floor(Math.random()*ids.length)]; persist(); openPlace(state.position);
+  state.position=ids[Math.floor(Math.random()*ids.length)]; persist(); focusCurrent(); openPlace(state.position);
 };
-startBtn.onclick=()=>{state.position=0;persist();};
-moveBtn.onclick=()=>{state.position=selected;persist();dialog.close();};
+startBtn.onclick=()=>{state.position=0;persist();focusCurrent();};
+moveBtn.onclick=()=>{state.position=selected;persist();dialog.close();focusCurrent();};
 saveBtn.onclick=saveModal;
 closeBtn.onclick=()=>dialog.close();
 helpBtn.onclick=()=>helpDialog.showModal();
