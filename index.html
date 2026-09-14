@@ -51,18 +51,15 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
 }
 
 .dice-overlay{
-  position:sticky;
-  left:50%;
+  position:fixed;
+  left:50vw;
   top:50%;
   transform:translate(-50%,-50%);
-  z-index:30;
+  z-index:9999;
   pointer-events:none;
   display:none;
   width:max-content;
-  height:max-content;
-  text-align:center;
-  margin-right:-180px;
-  margin-bottom:-160px
+  text-align:center
 }
 .dice-overlay.show{display:block}
 .dice-box{width:112px;height:112px;border-radius:24px;background:#fff;border:3px solid #202820;box-shadow:0 10px 30px rgba(0,0,0,.22);display:grid;place-items:center;font-size:64px;line-height:1}
@@ -84,6 +81,12 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
 </style>
 </head>
 <body>
+
+<div class="dice-overlay" id="diceOverlay" aria-live="polite">
+  <div class="dice-box" id="diceBox">⚀</div>
+  <div class="dice-result" id="diceResult">주사위 굴리는 중…</div>
+</div>
+
 <header>
   <div><h1>경주 맛집마블</h1><small>어디서 무엇을 먹을지 고민일 때</small></div>
   <button id="helpBtn" class="secondary">설치방법</button>
@@ -97,7 +100,7 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
     <label class="btn secondary">복원<input id="importInput" type="file" accept=".json,application/json" hidden></label>
     <span class="status" id="status">현재 위치: START</span>
   </div>
-  <div class="tip">주사위를 굴리면 말이 한 칸씩 이동하고 화면이 현재 칸을 따라갑니다. 칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 주사위가 현재 보고 있는 화면 중앙에 항상 보이도록 수정한 V2.6입니다.</div>
+  <div class="tip">주사위를 굴리면 말이 한 칸씩 이동하고 화면이 현재 칸을 따라갑니다. 칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 주사위를 보드가 아닌 실제 화면(viewport) 중앙에 표시하도록 수정한 V2.7입니다.</div>
   <div class="board-scroll" id="scroll">
     <div class="board" id="board">
       <div class="static-corner special" style="left:1680px;top:0;width:220px;height:135px;cursor:default;font-size:12px">개인종합평가 S가 쏘기</div>
@@ -144,7 +147,7 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
 </dialog>
 
 <script>
-const PLACES = [{"name": "START", "kind": "special", "recommended": false}, {"name": "궁림바지락칼국수", "kind": "restaurant", "recommended": false}, {"name": "소문난복래(삼계탕)", "kind": "restaurant", "recommended": false}, {"name": "미담영양솥밥", "kind": "restaurant", "recommended": false}, {"name": "불국사밀면", "kind": "restaurant", "recommended": false}, {"name": "원조떡갈비(찌개정식)", "kind": "restaurant", "recommended": false}, {"name": "송정원순두부", "kind": "restaurant", "recommended": false}, {"name": "불국사복주쌈밥", "kind": "restaurant", "recommended": false}, {"name": "경주밀면", "kind": "restaurant", "recommended": false}, {"name": "삼국식당 삼국애", "kind": "restaurant", "recommended": false}, {"name": "탐마루(정식)", "kind": "restaurant", "recommended": false}, {"name": "해솔방 칼국수,돈까스", "kind": "restaurant", "recommended": false}, {"name": "박용자경주 명동쫄면", "kind": "restaurant", "recommended": false}, {"name": "경주우렁각시 우렁강된장", "kind": "restaurant", "recommended": false}, {"name": "눈뚜렁밥뚜렁 돼지석쇠구이정식", "kind": "restaurant", "recommended": false}, {"name": "부산식당 차돌된장", "kind": "restaurant", "recommended": false}, {"name": "맛자랑 돌솥정식", "kind": "restaurant", "recommended": false}, {"name": "갈비랑국수랑", "kind": "restaurant", "recommended": false}, {"name": "여자만(장어)", "kind": "restaurant", "recommended": true}, {"name": "경주전복해물뚝배기", "kind": "restaurant", "recommended": false}, {"name": "초원석쇠불고기", "kind": "restaurant", "recommended": false}, {"name": "낙지마실", "kind": "restaurant", "recommended": false}, {"name": "감포별미횟집", "kind": "restaurant", "recommended": true}, {"name": "보문갈비", "kind": "restaurant", "recommended": false}, {"name": "느티나무", "kind": "restaurant", "recommended": false}, {"name": "경성면옥", "kind": "restaurant", "recommended": false}, {"name": "영천돼지국밥", "kind": "restaurant", "recommended": false}, {"name": "불국사복집", "kind": "restaurant", "recommended": false}, {"name": "최박사 돼지갈비", "kind": "restaurant", "recommended": true}, {"name": "가현추어탕(고디)", "kind": "restaurant", "recommended": false}, {"name": "청포(해물)", "kind": "restaurant", "recommended": false}, {"name": "황림 매운탕", "kind": "restaurant", "recommended": false}, {"name": "산성 숯불갈비", "kind": "restaurant", "recommended": false}, {"name": "해운대회식당 복어/아구", "kind": "restaurant", "recommended": false}, {"name": "미남장어", "kind": "restaurant", "recommended": true}, {"name": "보문한우", "kind": "restaurant", "recommended": true}, {"name": "경상도 추어탕", "kind": "restaurant", "recommended": false}, {"name": "구내식당", "kind": "restaurant", "recommended": false}, {"name": "불국사 토함산밀면", "kind": "restaurant", "recommended": false}, {"name": "들고래횟집 물회", "kind": "restaurant", "recommended": false}, {"name": "주상절리돌짬뽕", "kind": "restaurant", "recommended": false}, {"name": "금동 중식", "kind": "restaurant", "recommended": false}, {"name": "일품양평해장국", "kind": "restaurant", "recommended": false}, {"name": "석거돈 낙지돼지볶음", "kind": "restaurant", "recommended": true}, {"name": "현대쌈밥", "kind": "restaurant", "recommended": false}, {"name": "산주향 파스타, 피자", "kind": "restaurant", "recommended": false}, {"name": "등큰돈까스", "kind": "restaurant", "recommended": false}, {"name": "춘향이 삼겹살,짜글이", "kind": "restaurant", "recommended": true}, {"name": "마당발쭈꾸미", "kind": "restaurant", "recommended": false}, {"name": "독도모밀", "kind": "restaurant", "recommended": false}, {"name": "토함한우채", "kind": "restaurant", "recommended": true}, {"name": "부타도리 덮밥", "kind": "restaurant", "recommended": false}, {"name": "불국어당", "kind": "restaurant", "recommended": false}, {"name": "난식당1974(명란 비빔밥)", "kind": "restaurant", "recommended": false}, {"name": "DC계좌 누적수익률 1등", "kind": "special", "recommended": false}, {"name": "자연밥상 솥밥", "kind": "restaurant", "recommended": false}, {"name": "장수두부촌 순두부찌개정식", "kind": "restaurant", "recommended": false}, {"name": "청담오마카세", "kind": "restaurant", "recommended": true}, {"name": "토담가마솥국밥", "kind": "restaurant", "recommended": false}, {"name": "월성돼지국밥", "kind": "restaurant", "recommended": false}, {"name": "부산손칼국수", "kind": "restaurant", "recommended": false}, {"name": "수복참치", "kind": "restaurant", "recommended": true}, {"name": "하동낙지", "kind": "restaurant", "recommended": false}, {"name": "내조국국밥", "kind": "restaurant", "recommended": false}, {"name": "두부마을", "kind": "restaurant", "recommended": false}, {"name": "떡이네조개전골", "kind": "restaurant", "recommended": true}, {"name": "한돈가", "kind": "restaurant", "recommended": true}, {"name": "이층생활(파스타)", "kind": "restaurant", "recommended": false}, {"name": "보문어담가", "kind": "restaurant", "recommended": false}, {"name": "고집갈비당", "kind": "restaurant", "recommended": false}, {"name": "참뼈감자탕", "kind": "restaurant", "recommended": false}, {"name": "OK목장", "kind": "restaurant", "recommended": true}, {"name": "함양집(한우물회)", "kind": "restaurant", "recommended": false}, {"name": "호반오리", "kind": "restaurant", "recommended": true}, {"name": "경촌재(비빔밥)", "kind": "restaurant", "recommended": false}];
+const PLACES = [{"name": "START", "kind": "special", "recommended": false}, {"name": "궁림바지락칼국수", "kind": "restaurant", "recommended": false}, {"name": "소문난복래(삼계탕)", "kind": "restaurant", "recommended": false}, {"name": "미담영양솥밥", "kind": "restaurant", "recommended": false}, {"name": "불국사밀면", "kind": "restaurant", "recommended": false}, {"name": "원조떡갈비(찌개정식)", "kind": "restaurant", "recommended": false}, {"name": "송정원순두부", "kind": "restaurant", "recommended": false}, {"name": "불국사복주쌈밥", "kind": "restaurant", "recommended": false}, {"name": "경주밀면", "kind": "restaurant", "recommended": false}, {"name": "삼국식당 삼국애", "kind": "restaurant", "recommended": false}, {"name": "탐마루(정식)", "kind": "restaurant", "recommended": false}, {"name": "해솔방 칼국수,돈까스", "kind": "restaurant", "recommended": false}, {"name": "박용자경주 명동쫄면", "kind": "restaurant", "recommended": false}, {"name": "경주우렁각시 우렁강된장", "kind": "restaurant", "recommended": false}, {"name": "눈뚜렁밥뚜렁 돼지석쇠구이정식", "kind": "restaurant", "recommended": false}, {"name": "부산식당 차돌된장", "kind": "restaurant", "recommended": false}, {"name": "맛자랑 돌솥정식", "kind": "restaurant", "recommended": false}, {"name": "갈비랑국수랑", "kind": "restaurant", "recommended": false}, {"name": "여자만(장어)", "kind": "restaurant", "recommended": true}, {"name": "경주전복해물뚝배기", "kind": "restaurant", "recommended": false}, {"name": "초원석쇠불고기", "kind": "restaurant", "recommended": false}, {"name": "낙지마실", "kind": "restaurant", "recommended": false}, {"name": "감포별미횟집", "kind": "restaurant", "recommended": true}, {"name": "보문갈비", "kind": "restaurant", "recommended": false}, {"name": "느티나무", "kind": "restaurant", "recommended": false}, {"name": "경성면옥", "kind": "restaurant", "recommended": false}, {"name": "영천돼지국밥", "kind": "restaurant", "recommended": false}, {"name": "불국사복집", "kind": "restaurant", "recommended": false}, {"name": "최박사 돼지갈비", "kind": "restaurant", "recommended": true}, {"name": "가현추어탕(고디)", "kind": "restaurant", "recommended": false}, {"name": "청포(해물)", "kind": "restaurant", "recommended": false}, {"name": "황림 매운탕", "kind": "restaurant", "recommended": false}, {"name": "산성 숯불갈비", "kind": "restaurant", "recommended": false}, {"name": "해운대회식당 복어/아구", "kind": "restaurant", "recommended": false}, {"name": "미남장어", "kind": "restaurant", "recommended": true}, {"name": "보문한우", "kind": "restaurant", "recommended": true}, {"name": "경상도 추어탕", "kind": "restaurant", "recommended": false}, {"name": "구내식당", "kind": "restaurant", "recommended": false}, {"name": "불국사 토함산밀면", "kind": "restaurant", "recommended": false}, {"name": "들고래횟집 물회", "kind": "restaurant", "recommended": false}, {"name": "주상절리돌짬뽕", "kind": "restaurant", "recommended": false}, {"name": "금동 중식", "kind": "restaurant", "recommended": false}, {"name": "일품양평해장국", "kind": "restaurant", "recommended": false}, {"name": "석거돈 낙지돼지볶음", "kind": "restaurant", "recommended": true}, {"name": "현대쌈밥", "kind": "restaurant", "recommended": false}, {"name": "산주향 파스타, 피자", "kind": "restaurant", "recommended": false}, {"name": "등큰돈까스", "kind": "restaurant", "recommended": false}, {"name": "춘향이 삼겹살,짜글이", "kind": "restaurant", "recommended": true}, {"name": "마당발쭈꾸미", "kind": "restaurant", "recommended": false}, {"name": "독도모밀", "kind": "restaurant", "recommended": false}, {"name": "토함한우채", "kind": "restaurant", "recommended": true}, {"name": "부타도리 덮밥", "kind": "restaurant", "recommended": false}, {"name": "불국어당", "kind": "restaurant", "recommended": false}, {"name": "난식당1974(명란 비빔밥)", "kind": "restaurant", "recommended": false}, {"name": "DC계좌 누적수익률 1등", "kind": "special", "recommended": false}, {"name": "자연밥상 솥밥", "kind": "restaurant", "recommended": false}, {"name": "장수두부촌 순두부찌개정식", "kind": "restaurant", "recommended": false}, {"name": "청담오마카세", "kind": "restaurant", "recommended": true}, {"name": "토담가마솥국밥", "kind": "restaurant", "recommended": false}, {"name": "월성돼지국밥", "kind": "restaurant", "recommended": false}, {"name": "부산손칼국수", "kind": "restaurant", "recommended": false}, {"name": "수복참치", "kind": "restaurant", "recommended": true}, {"name": "하동낙지", "kind": "restaurant", "recommended": false}, {"name": "내조국국밥", "kind": "restaurant", "recommended": false}, {"name": "두부마을", "kind": "restaurant", "recommended": false}, {"name": "떡이네조개전골", "kind": "restaurant", "recommended": true}, {"name": "한돈가", "kind": "restaurant", "recommended": true}, {"name": "이중생활(파스타)", "kind": "restaurant", "recommended": false}, {"name": "보문어담가", "kind": "restaurant", "recommended": false}, {"name": "고집갈비당", "kind": "restaurant", "recommended": false}, {"name": "참뼈감자탕", "kind": "restaurant", "recommended": false}, {"name": "OK목장", "kind": "restaurant", "recommended": true}, {"name": "함양집(한우물회)", "kind": "restaurant", "recommended": false}, {"name": "호반오리", "kind": "restaurant", "recommended": true}, {"name": "경촌재(비빔밥)", "kind": "restaurant", "recommended": false}];
 const KEY="gyeongju-matjip-marble-v2";
 const defaultState={position:0,visited:{},ratings:{},notes:{}};
 let state=load(), selected=0;
@@ -272,17 +275,6 @@ function saveModal(){
   persist(); dialog.close();
 }
 
-function centerDiceInViewport(){
-  const sc=document.getElementById("scroll");
-  const ov=document.getElementById("diceOverlay");
-  if(!sc || !ov) return;
-  const cx=sc.scrollLeft + sc.clientWidth/2;
-  const cy=sc.scrollTop + sc.clientHeight/2;
-  ov.style.position="absolute";
-  ov.style.left=`${cx}px`;
-  ov.style.top=`${cy}px`;
-  ov.style.transform="translate(-50%,-50%)";
-}
 
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const diceFaces=["⚀","⚁","⚂","⚃","⚄","⚅"];
@@ -295,7 +287,6 @@ async function animateRoll(){
   randomBtn.disabled=true;
 
   const finalRoll=Math.floor(Math.random()*6)+1;
-  centerDiceInViewport();
   diceOverlay.classList.add("show");
   diceBox.classList.add("rolling");
   diceResult.textContent="주사위 굴리는 중…";
@@ -341,15 +332,6 @@ async function animateRoll(){
 }
 rollBtn.onclick=animateRoll;
 
-const scrollEl=document.getElementById("scroll");
-if(scrollEl){
-  scrollEl.addEventListener("scroll",()=>{
-    if(isRolling && diceOverlay.classList.contains("show")) centerDiceInViewport();
-  },{passive:true});
-}
-window.addEventListener("resize",()=>{
-  if(isRolling && diceOverlay.classList.contains("show")) centerDiceInViewport();
-});
 
 randomBtn.onclick=()=>{
   const ids=PLACES.map((p,i)=>i).filter(i=>PLACES[i].kind==="restaurant");
