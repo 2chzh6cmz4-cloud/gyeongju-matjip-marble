@@ -52,16 +52,16 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
 
 .dice-overlay{
   position:fixed;
-  left:50vw;
-  top:50%;
-  transform:translate(-50%,-50%);
-  z-index:9999;
+  inset:0;
+  z-index:99999;
   pointer-events:none;
   display:none;
-  width:max-content;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
   text-align:center
 }
-.dice-overlay.show{display:block}
+.dice-overlay.show{display:flex}
 .dice-box{width:112px;height:112px;border-radius:24px;background:#fff;border:3px solid #202820;box-shadow:0 10px 30px rgba(0,0,0,.22);display:grid;place-items:center;font-size:64px;line-height:1}
 .dice-box.rolling{animation:diceShake .12s linear infinite}
 .dice-result{margin-top:10px;display:inline-block;background:#172019;color:#fff;border-radius:999px;padding:7px 13px;font-weight:900;font-size:16px}
@@ -81,11 +81,12 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
 </style>
 </head>
 <body>
-
 <div class="dice-overlay" id="diceOverlay" aria-live="polite">
   <div class="dice-box" id="diceBox">⚀</div>
   <div class="dice-result" id="diceResult">주사위 굴리는 중…</div>
 </div>
+
+
 
 <header>
   <div><h1>경주 맛집마블</h1><small>어디서 무엇을 먹을지 고민일 때</small></div>
@@ -100,10 +101,11 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
     <label class="btn secondary">복원<input id="importInput" type="file" accept=".json,application/json" hidden></label>
     <span class="status" id="status">현재 위치: START</span>
   </div>
-  <div class="tip">주사위를 굴리면 말이 한 칸씩 이동하고 화면이 현재 칸을 따라갑니다. 칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 주사위를 보드가 아닌 실제 화면(viewport) 중앙에 표시하도록 수정한 V2.7입니다.</div>
+  <div class="tip">주사위를 굴리면 말이 한 칸씩 이동하고 화면이 현재 칸을 따라갑니다. 칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 주사위 애니메이션을 현재 보고 있는 실제 화면 정중앙에 고정하고, 결과 후에는 화면이 말 이동을 따라가도록 수정한 V2.9입니다.</div>
   <div class="board-scroll" id="scroll">
     <div class="board" id="board">
       <div class="static-corner special" style="left:1680px;top:0;width:220px;height:135px;cursor:default;font-size:12px">개인종합평가 S가 쏘기</div>
+      
       
       
       <div class="center">
@@ -276,6 +278,8 @@ function saveModal(){
 }
 
 
+
+
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const diceFaces=["⚀","⚁","⚂","⚃","⚄","⚅"];
 let isRolling=false;
@@ -310,7 +314,7 @@ async function animateRoll(){
 
     // 이동한 칸을 화면 중앙에 가깝게 자동 추적
     focusIndex(state.position,true);
-
+  
     const current=document.querySelector('.cell.current');
     if(current){
       current.classList.add("moving");
