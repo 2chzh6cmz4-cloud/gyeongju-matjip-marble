@@ -62,8 +62,10 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
   text-align:center
 }
 .dice-overlay.show{display:flex}
-.dice-box{width:112px;height:112px;border-radius:24px;background:#fff;border:3px solid #202820;box-shadow:0 10px 30px rgba(0,0,0,.22);display:grid;place-items:center;font-size:64px;line-height:1}
-.dice-box.rolling{animation:diceShake .12s linear infinite}
+.dice-pair{display:flex;gap:16px;align-items:center;justify-content:center}
+.dice-box{width:96px;height:96px;border-radius:24px;background:#fff;border:3px solid #202820;box-shadow:0 10px 30px rgba(0,0,0,.22);display:grid;place-items:center;font-size:64px;line-height:1}
+.dice-pair.rolling .dice-box{animation:diceShake .12s linear infinite}
+.dice-pair.rolling .dice-box:nth-child(2){animation-delay:-.06s}
 .dice-result{margin-top:10px;display:inline-block;background:#172019;color:#fff;border-radius:999px;padding:7px 13px;font-weight:900;font-size:16px}
 .cell.moving{outline:6px solid #ff8a00;outline-offset:-6px;z-index:7;animation:movePulse .42s ease}
 @keyframes diceShake{
@@ -82,7 +84,7 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
 </head>
 <body>
 <div class="dice-overlay" id="diceOverlay" aria-live="polite">
-  <div class="dice-box" id="diceBox">⚀</div>
+  <div class="dice-pair"><div class="dice-box" id="diceBox1">⚀</div><div class="dice-box" id="diceBox2">⚀</div></div>
   <div class="dice-result" id="diceResult">주사위 굴리는 중…</div>
 </div>
 
@@ -101,7 +103,7 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
     <label class="btn secondary">복원<input id="importInput" type="file" accept=".json,application/json" hidden></label>
     <span class="status" id="status">현재 위치: START</span>
   </div>
-  <div class="tip">주사위를 굴리면 말이 한 칸씩 이동하고 화면이 현재 칸을 따라갑니다. 칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 주사위 애니메이션을 현재 보고 있는 실제 화면 정중앙에 고정하고, 결과 후에는 화면이 말 이동을 따라가도록 수정한 V2.9입니다.</div>
+  <div class="tip">주사위를 굴리면 말이 한 칸씩 이동하고 화면이 현재 칸을 따라갑니다. 칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 주사위를 2개로 변경하고, 더블이면 자동으로 한 번 더 굴리도록 수정한 V3.1입니다.</div>
   <div class="board-scroll" id="scroll">
     <div class="board" id="board">
       <div class="static-corner special" style="left:1680px;top:0;width:220px;height:135px;cursor:default;font-size:12px">개인종합평가 S가 쏘기</div>
@@ -282,6 +284,7 @@ function saveModal(){
 
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const diceFaces=["⚀","⚁","⚂","⚃","⚄","⚅"];
+const dicePair=document.querySelector(".dice-pair");
 let isRolling=false;
 
 async function animateRoll(){
@@ -290,45 +293,72 @@ async function animateRoll(){
   rollBtn.disabled=true;
   randomBtn.disabled=true;
 
-  const finalRoll=Math.floor(Math.random()*6)+1;
-  diceOverlay.classList.add("show");
-  diceBox.classList.add("rolling");
-  diceResult.textContent="주사위 굴리는 중…";
-
   const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-  const spins=reduced?3:12;
-  for(let k=0;k<spins;k++){
-    diceBox.textContent=diceFaces[Math.floor(Math.random()*6)];
-    await sleep(reduced?70:65);
-  }
 
-  diceBox.classList.remove("rolling");
-  diceBox.textContent=diceFaces[finalRoll-1];
-  diceResult.textContent=`${finalRoll}칸 이동!`;
-  await sleep(reduced?220:650);
+  async function rollOnce(){
+    const die1=Math.floor(Math.random()*6)+1;
+    const die2=Math.floor(Math.random()*6)+1;
+    const total=die1+die2;
+    const isDouble=die1===die2;
 
-  for(let step=1; step<=finalRoll; step++){
-    state.position=(state.position+1)%PLACES.length;
-    localStorage.setItem(KEY,JSON.stringify(state));
-    render();
+    diceOverlay.classList.add("show");
+    dicePair.classList.add("rolling");
+    diceResult.textContent="주사위 굴리는 중…";
 
-    // 이동한 칸을 화면 중앙에 가깝게 자동 추적
-    focusIndex(state.position,true);
-  
-    const current=document.querySelector('.cell.current');
-    if(current){
-      current.classList.add("moving");
-      setTimeout(()=>current.classList.remove("moving"),420);
+    const spins=reduced?3:12;
+    for(let k=0;k<spins;k++){
+      diceBox1.textContent=diceFaces[Math.floor(Math.random()*6)];
+      diceBox2.textContent=diceFaces[Math.floor(Math.random()*6)];
+      await sleep(reduced?70:65);
     }
 
-    // 스크롤이 따라올 시간을 줌
-    await sleep(reduced?120:520);
+    dicePair.classList.remove("rolling");
+    diceBox1.textContent=diceFaces[die1-1];
+    diceBox2.textContent=diceFaces[die2-1];
+
+    if(isDouble){
+      diceResult.textContent=`더블! ${die1} + ${die2} = ${total}칸 이동 후 한 번 더!`;
+    }else{
+      diceResult.textContent=`${die1} + ${die2} = ${total}칸 이동!`;
+    }
+
+    await sleep(reduced?250:750);
+
+    for(let step=1; step<=total; step++){
+      state.position=(state.position+1)%PLACES.length;
+      localStorage.setItem(KEY,JSON.stringify(state));
+      render();
+      focusIndex(state.position,true);
+
+      const current=document.querySelector('.cell.current');
+      if(current){
+        current.classList.add("moving");
+        setTimeout(()=>current.classList.remove("moving"),420);
+      }
+
+      await sleep(reduced?120:500);
+    }
+
+    diceResult.textContent=`도착: ${PLACES[state.position].name}`;
+    await sleep(reduced?250:700);
+
+    return isDouble;
   }
 
-  diceResult.textContent=`도착: ${PLACES[state.position].name}`;
-  await sleep(reduced?300:900);
-  diceOverlay.classList.remove("show");
+  let extraRoll=true;
+  let doublesInRow=0;
 
+  while(extraRoll){
+    extraRoll=await rollOnce();
+
+    if(extraRoll){
+      doublesInRow++;
+      diceResult.textContent=`더블! 한 번 더 굴립니다 (${doublesInRow}회 연속)`;
+      await sleep(reduced?300:900);
+    }
+  }
+
+  diceOverlay.classList.remove("show");
   rollBtn.disabled=false;
   randomBtn.disabled=false;
   isRolling=false;
