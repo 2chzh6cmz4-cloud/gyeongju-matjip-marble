@@ -154,6 +154,15 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
   }
 }
 
+
+.external-place-info{margin:12px 0 14px;padding:12px;border:1px solid #d9ddd9;border-radius:14px;background:#f7faf7}
+.external-place-info .ext-title{font-weight:900;margin-bottom:8px}
+.external-place-info .ratings{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px}
+.external-place-info .rating-chip-ext{background:#fff;border:1px solid #d9ddd9;border-radius:999px;padding:6px 9px;font-size:12px;font-weight:800}
+.external-place-info .map-actions{display:flex;gap:8px;flex-wrap:wrap}
+.external-place-info .map-link{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 12px;border-radius:11px;text-decoration:none;font-weight:900;border:1px solid #cfd6cf;background:#fff;color:#172019;touch-action:manipulation}
+.external-place-info .updated{margin-top:8px;font-size:11px;color:#687168}
+
 </style>
 </head>
 <body>
@@ -184,7 +193,7 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
     <label class="btn secondary">복원<input id="importInput" type="file" accept=".json,application/json" hidden></label>
     <span class="status" id="status">현재 위치: START</span>
   </div>
-  <div class="tip">주사위를 굴리면 말이 한 칸씩 이동하고 화면이 현재 칸을 따라갑니다. 칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 상단 미니 컨트롤바가 나타나는 즉시 터치되도록 반응성을 개선한 V3.4.1입니다.</div>
+  <div class="tip">주사위를 굴리면 말이 한 칸씩 이동하고 화면이 현재 칸을 따라갑니다. 칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 식당 상세창에 네이버지도·카카오맵 바로가기를 추가한 V3.5입니다.</div>
   <div class="board-scroll" id="scroll">
     <div class="board" id="board">
 <div class="center">
@@ -205,6 +214,20 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
     <button class="close" id="closeBtn">✕</button>
     <h2 id="mTitle"></h2>
     <div class="meta" id="mMeta"></div>
+
+    <div class="external-place-info" id="externalPlaceInfo" style="display:none">
+      <div class="ext-title">외부 지도 · 평점</div>
+      <div class="ratings">
+        <span class="rating-chip-ext" id="naverRating">네이버: 별점 미제공</span>
+        <span class="rating-chip-ext" id="kakaoRating">카카오: 지도에서 최신 평점 확인</span>
+      </div>
+      <div class="map-actions">
+        <a class="map-link" id="naverMapLink" href="#" target="_blank" rel="noopener">🗺️ 네이버지도 바로가기</a>
+        <a class="map-link" id="kakaoMapLink" href="#" target="_blank" rel="noopener">🗺️ 카카오맵 바로가기</a>
+      </div>
+      <div class="updated">외부 정보 확인 기준: 2026-09-15</div>
+    </div>
+
     <div class="row"><label><input type="checkbox" id="visited"> 방문완료</label></div>
     <h4>내 평점</h4>
     <div class="stars" id="stars"></div>
@@ -347,8 +370,27 @@ function render(){
   stats.innerHTML=`<b>방문완료 ${visited}곳</b><span>평점 등록 ${rated}곳</span><span>총 ${PLACES.length}칸</span>`;
 }
 
+
+function updateExternalPlaceInfo(i){
+  const place=PLACES[i];
+  const panel=document.getElementById("externalPlaceInfo");
+  if(!panel || !place || place.kind!=="restaurant"){
+    if(panel) panel.style.display="none";
+    return;
+  }
+  panel.style.display="block";
+  const cleanName=place.name.replace(/\([^)]*\)/g," ").replace(/[,/]/g," ").replace(/\s+/g," ").trim();
+  const query=`경주 ${cleanName}`;
+  const enc=encodeURIComponent(query);
+  document.getElementById("naverMapLink").href=`https://map.naver.com/p/search/${enc}`;
+  document.getElementById("kakaoMapLink").href=`https://map.kakao.com/?q=${enc}`;
+  document.getElementById("naverRating").textContent="네이버: 별점 미제공";
+  document.getElementById("kakaoRating").textContent="카카오: 지도에서 최신 평점 확인";
+}
+
 function openPlace(i){
   selected=i; const p=PLACES[i];
+  updateExternalPlaceInfo(i);
   mTitle.textContent=p.name;
   mMeta.textContent=p.recommended?"엑셀 초록색 표시":"";
   visited.checked=!!state.visited[i];
