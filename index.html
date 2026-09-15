@@ -171,6 +171,23 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
 .luck-title{font-size:23px;font-weight:950;margin-top:18px;line-height:1.25}.luck-desc{font-size:15px;margin-top:10px;line-height:1.45;color:#505850}
 @keyframes luckFlip{0%{transform:rotateY(90deg) scale(.86)}70%{transform:rotateY(-8deg) scale(1.03)}100%{transform:rotateY(0) scale(1)}}
 
+
+/* V3.7.1: daytime recommended-cell override.
+   Placed last + higher specificity so the original green style cannot win. */
+.cell.recommended.day-disabled,
+.cell.recommended.day-disabled:hover,
+.cell.recommended.day-disabled.current{
+  background:#e6e6e6 !important;
+  background-color:#e6e6e6 !important;
+  color:#9a9a9a !important;
+  border-color:#bdbdbd !important;
+  opacity:.48 !important;
+  filter:grayscale(1) !important;
+  box-shadow:none !important;
+  cursor:not-allowed !important;
+}
+.cell.recommended.day-disabled::after{content:"낮 비활성";position:absolute;left:4px;bottom:3px;font-size:9px;font-weight:900;color:#777;background:rgba(255,255,255,.82);padding:2px 4px;border-radius:5px}
+
 </style>
 </head>
 <body>
@@ -209,7 +226,7 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
     <label class="btn secondary">복원<input id="importInput" type="file" accept=".json,application/json" hidden></label>
     <span class="status" id="status">현재 위치: START</span>
   </div>
-  <div class="tip">주사위를 굴리면 말이 한 칸씩 이동하고 화면이 현재 칸을 따라갑니다. 칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 밥 사는 특수칸 랜덤 식당 선정과 낮 시간 초록 추천칸 비활성화를 추가한 V3.7입니다.</div>
+  <div class="tip">주사위를 굴리면 말이 한 칸씩 이동하고 화면이 현재 칸을 따라갑니다. 칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 17시 이전 초록 추천칸 비활성 표시 우선순위를 수정한 V3.7.1입니다.</div>
   <div class="board-scroll" id="scroll">
     <div class="board" id="board">
 <div class="center">
@@ -369,8 +386,8 @@ function positionFor(i){
 
 
 function isLocalDaytime(){
-  const hour=new Date().getHours();
-  return hour>=11 && hour<17;
+  // 기기 로컬시간 기준: 17:00 이전에는 초록 추천칸 비활성
+  return new Date().getHours() < 17;
 }
 function isMealPopupExcluded(place){
   return !!place && ["START","구내식당","DC계좌 누적수익률 1등","개인종합평가 S가 쏘기"].includes(place.name);
