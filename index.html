@@ -209,7 +209,7 @@ textarea{width:100%;min-height:88px;border:1px solid #ccd2cd;border-radius:10px;
     <label class="btn secondary">복원<input id="importInput" type="file" accept=".json,application/json" hidden></label>
     <span class="status" id="status">현재 위치: START</span>
   </div>
-  <div class="tip">주사위를 굴리면 말이 한 칸씩 이동하고 화면이 현재 칸을 따라갑니다. 칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. 상·우·하·좌에 행운카드 1칸씩을 추가해 총 80칸으로 확장한 V3.6입니다.</div>
+  <div class="tip">주사위를 굴리면 말이 한 칸씩 이동하고 화면이 현재 칸을 따라갑니다. 칸을 누르면 평점·메모·방문완료를 저장할 수 있습니다. START·구내식당 팝업을 제거하고 START 정확히 도착 시 보너스 주사위를 추가한 V3.6.1입니다.</div>
   <div class="board-scroll" id="scroll">
     <div class="board" id="board">
 <div class="center">
@@ -375,7 +375,10 @@ function render(){
     Object.assign(d.style,{left:r.x+"px",top:r.y+"px",width:r.w+"px",height:r.h+"px",fontSize:fontSizeFor(p,i)+"px"});
     const rating=Number(state.ratings[i]||0);
     d.innerHTML=`<span>${esc(p.name)}</span>${state.position===i?'<span class="pin">📍</span>':""}${rating?`<span class="rating-chip">★${rating}</span>`:""}`;
-    d.onclick=()=>openPlace(i);
+    d.onclick=()=>{
+      if(p.name==="START" || p.name==="구내식당") return;
+      openPlace(i);
+    };
     board.appendChild(d);
   });
   const p=PLACES[state.position];
@@ -489,6 +492,8 @@ async function drawLuckCard(reduced=false){
     }
   }
   // 강제 이동 후 다른 행운카드에 도착해도 연쇄 발동하지 않는다.
+  // 행운카드로 START에 이동한 경우에는 START 보너스 굴림을 인정한다.
+  return state.position===0;
 }
 
 async function animateRoll(){
@@ -535,22 +540,45 @@ async function animateRoll(){
     await sleep(reduced?250:700);
 
     const landedOnLuck=PLACES[state.position]?.kind==="luck";
+    let startBonus=false;
     if(landedOnLuck){
       diceOverlay.classList.remove("show");
-      await drawLuckCard(reduced);
+      startBonus=await drawLuckCard(reduced);
+    }else{
+      // 주사위 이동으로 START에 정확히 도착했을 때만 보너스 1회.
+      // START를 지나가기만 한 경우에는 해당하지 않는다.
+      startBonus=state.position===0;
     }
-    return isDouble;
+    return {isDouble,startBonus};
   }
 
-  let extraRoll=true;
+  let pendingRolls=1;
   let doublesInRow=0;
 
-  while(extraRoll){
-    extraRoll=await rollOnce();
+  while(pendingRolls>0){
+    pendingRolls--;
+    const result=await rollOnce();
 
-    if(extraRoll){
+    if(result.isDouble){
+      pendingRolls++;
       doublesInRow++;
-      diceResult.textContent=`더블! 한 번 더 굴립니다 (${doublesInRow}회 연속)`;
+    }else{
+      doublesInRow=0;
+    }
+    if(result.startBonus){
+      pendingRolls++;
+    }
+
+    if(pendingRolls>0){
+      if(result.isDouble && result.startBonus){
+        diceResult.textContent=`더블 + START 도착! 보너스 주사위 ${pendingRolls}회 남음`;
+      }else if(result.startBonus){
+        diceResult.textContent=`START 도착! 주사위를 한 번 더 굴립니다.`;
+      }else if(result.isDouble){
+        diceResult.textContent=`더블! 한 번 더 굴립니다 (${doublesInRow}회 연속)`;
+      }else{
+        diceResult.textContent=`보너스 주사위 ${pendingRolls}회 남음`;
+      }
       await sleep(reduced?300:900);
     }
   }
@@ -560,14 +588,17 @@ async function animateRoll(){
   randomBtn.disabled=false;
   isRolling=false;
   requestAnimationFrame(updateMiniControls);
-  if(PLACES[state.position]?.kind!=="luck") openPlace(state.position);
+  const finalPlace=PLACES[state.position];
+  if(finalPlace?.kind!=="luck" && finalPlace?.name!=="START" && finalPlace?.name!=="구내식당"){
+    openPlace(state.position);
+  }
 }
 rollBtn.onclick=animateRoll;
 
 
 function chooseRandomRestaurant(){
   if(isRolling) return;
-  const ids=PLACES.map((p,i)=>i).filter(i=>PLACES[i].kind==="restaurant");
+  const ids=PLACES.map((p,i)=>i).filter(i=>PLACES[i].kind==="restaurant" && PLACES[i].name!=="구내식당");
   state.position=ids[Math.floor(Math.random()*ids.length)];
   persist();
   focusCurrent();
